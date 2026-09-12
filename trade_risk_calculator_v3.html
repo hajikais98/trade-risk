@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trade Risk Calculator V3</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0f172a;color:#f8fafc;font-family:system-ui,Arial,sans-serif}
+.wrap{max-width:720px;margin:auto;padding:18px}.card{background:#111827;border:1px solid #334155;border-radius:20px;padding:20px}
+h1{margin:0 0 5px;font-size:25px}.sub{color:#94a3b8;margin-bottom:20px}
+label{display:block;margin:13px 0 6px;font-size:14px}input,select{width:100%;padding:14px;border-radius:12px;border:1px solid #475569;background:#0b1220;color:#fff;font-size:17px}
+button{width:100%;margin-top:18px;padding:15px;border:0;border-radius:12px;background:#22c55e;color:#06130a;font-size:18px;font-weight:800}
+.result{display:none;margin-top:18px}.row{background:#0b1220;border:1px solid #334155;border-radius:13px;padding:13px;margin:9px 0}
+.small{color:#94a3b8;font-size:13px}.big{font-size:22px;font-weight:800;margin-top:4px}.tag{display:inline-block;padding:5px 9px;border-radius:9px;background:#1e293b;color:#cbd5e1;font-size:12px;margin-top:5px}
+.note{color:#94a3b8;font-size:12px;line-height:1.8;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+<h1>Trade Risk Calculator</h1>
+<div class="sub">V3 — حاسبة المخاطرة وحجم الصفقة</div>
+
+<label>نوع الأصل</label>
+<select id="asset">
+<option value="crypto">Crypto — حجم بالوحدات</option>
+<option value="gold">XAUUSD — اللوت = 100 أونصة</option>
+<option value="forex">Forex USD quote — اللوت = 100,000 وحدة</option>
+</select>
+
+<label>نوع الصفقة</label>
+<select id="side"><option value="buy">شراء (Buy)</option><option value="sell">بيع (Sell)</option></select>
+
+<label>الرصيد ($)</label>
+<input id="balance" type="number" value="1000" step="0.01">
+
+<label>نسبة المخاطرة (%)</label>
+<input id="risk" type="number" value="1" step="0.01">
+
+<label>سعر الدخول</label>
+<input id="entry" type="number" value="3000" step="0.00001">
+
+<label>Stop Loss</label>
+<input id="sl" type="number" value="2980" step="0.00001">
+
+<label>Take Profit</label>
+<input id="tp" type="number" value="3040" step="0.00001">
+
+<button onclick="calculate()">احسب الصفقة</button>
+
+<div id="result" class="result">
+<div class="row"><div class="small">أقصى خسارة مسموحة</div><div class="big" id="loss"></div></div>
+<div class="row"><div class="small">المسافة إلى Stop Loss</div><div class="big" id="sd"></div></div>
+<div class="row"><div class="small">Risk / Reward</div><div class="big" id="rr"></div></div>
+<div class="row"><div class="small">حجم الصفقة التقديري</div><div class="big" id="size"></div><div class="tag" id="sizeNote"></div></div>
+</div>
+
+<div class="note">
+هذه النسخة تستخدم مواصفات مبسطة: Crypto = وحدة أصل، XAUUSD = عقد 100 أونصة، وForex USD quote = عقد 100,000 وحدة.
+يجب مطابقة مواصفات العقد وقيمة النقطة مع الوسيط قبل استخدام الرقم في صفقة حقيقية. الأداة للحساب وإدارة المخاطر وليست توصية شراء أو بيع.
+</div>
+</div></div>
+
+<script>
+function val(id){return Number(document.getElementById(id).value)}
+function calculate(){
+ const asset=document.getElementById('asset').value, side=document.getElementById('side').value;
+ const b=val('balance'), r=val('risk'), e=val('entry'), s=val('sl'), t=val('tp');
+ if([b,r,e,s,t].some(x=>!Number.isFinite(x))||b<=0||r<=0||e<=0||s<=0||t<=0){
+  alert('أدخل جميع القيم بشكل صحيح');return;
+ }
+ const loss=b*r/100;
+ const slDist=Math.abs(e-s), tpDist=Math.abs(t-e);
+ if(slDist===0){alert('Stop Loss يجب أن يختلف عن سعر الدخول');return}
+ const rr=tpDist/slDist;
+
+ let valid=true;
+ if(side==='buy' && s>=e) valid=false;
+ if(side==='sell' && s<=e) valid=false;
+ if(side==='buy' && t<=e) valid=false;
+ if(side==='sell' && t>=e) valid=false;
+ if(!valid){alert('راجع اتجاه الصفقة: في Buy يجب أن يكون SL أسفل الدخول وTP أعلى الدخول، والعكس في Sell.');return}
+
+ let size, text, note;
+ if(asset==='crypto'){
+   size=loss/slDist;
+   text=size.toLocaleString('en-US',{maximumFractionDigits:6})+' وحدة';
+   note='Crypto: الخسارة التقريبية = الوحدات × مسافة السعر';
+ } else if(asset==='gold'){
+   size=loss/(slDist*100);
+   size=Math.floor(size*100)/100;
+   text=size.toFixed(2)+' lot';
+   note='XAUUSD: افترضنا 100 أونصة لكل 1 lot';
+ } else {
+   size=loss/(slDist*100000);
+   size=Math.floor(size*100)/100;
+   text=size.toFixed(2)+' lot';
+   note='Forex: افترضنا زوجًا مسعّرًا بالدولار وعقد 100,000';
+ }
+
+ document.getElementById('loss').textContent='$'+loss.toFixed(2);
+ document.getElementById('sd').textContent=slDist.toFixed(5);
+ document.getElementById('rr').textContent='1 : '+rr.toFixed(2);
+ document.getElementById('size').textContent=text;
+ document.getElementById('sizeNote').textContent=note;
+ document.getElementById('result').style.display='block';
+}
+calculate();
+</script>
+</body>
+</html>

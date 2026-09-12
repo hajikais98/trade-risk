@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trade Risk Calculator V2</title>
+<style>
+body{margin:0;background:#0f172a;color:#f8fafc;font-family:Arial,sans-serif}
+.box{max-width:680px;margin:20px auto;padding:20px}
+.card{background:#111827;border:1px solid #334155;border-radius:18px;padding:20px}
+h1{margin:0 0 5px;font-size:24px}.sub{color:#94a3b8;margin-bottom:20px}
+label{display:block;margin:13px 0 6px}input,select{width:100%;padding:14px;border-radius:12px;border:1px solid #475569;background:#0b1220;color:white;font-size:17px;box-sizing:border-box}
+button{width:100%;margin-top:18px;padding:15px;border:0;border-radius:12px;background:#22c55e;font-size:18px;font-weight:bold}
+.result{display:none;margin-top:18px}.row{background:#0b1220;border:1px solid #334155;border-radius:12px;padding:13px;margin:9px 0}
+.small{color:#94a3b8;font-size:13px}.big{font-size:22px;font-weight:bold;margin-top:4px}
+.note{color:#94a3b8;font-size:12px;line-height:1.7;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="box"><div class="card">
+<h1>حاسبة مخاطرة التداول</h1>
+<div class="sub">Trade Risk Calculator — V2</div>
+
+<label>الرصيد ($)</label>
+<input id="balance" type="number" value="1000" step="0.01">
+
+<label>نسبة المخاطرة (%)</label>
+<input id="risk" type="number" value="1" step="0.01">
+
+<label>سعر الدخول</label>
+<input id="entry" type="number" value="3000" step="0.00001">
+
+<label>Stop Loss</label>
+<input id="sl" type="number" value="2980" step="0.00001">
+
+<label>Take Profit</label>
+<input id="tp" type="number" value="3040" step="0.00001">
+
+<button onclick="calculate()">احسب الآن</button>
+
+<div id="result" class="result">
+<div class="row"><div class="small">أقصى خسارة مسموحة</div><div class="big" id="loss"></div></div>
+<div class="row"><div class="small">المسافة إلى Stop Loss</div><div class="big" id="distance"></div></div>
+<div class="row"><div class="small">المسافة إلى Take Profit</div><div class="big" id="rewardDistance"></div></div>
+<div class="row"><div class="small">Risk / Reward</div><div class="big" id="rr"></div></div>
+</div>
+
+<div class="note">هذه V2 تحسب المخاطرة ونسبة Risk/Reward فقط. حساب حجم العقد/اللوت سيُضاف بعد تحديد مواصفات كل أصل ووسيط، حتى لا نعطي المتداول رقمًا خاطئًا.</div>
+</div></div>
+
+<script>
+function calculate(){
+ const b=Number(document.getElementById('balance').value);
+ const r=Number(document.getElementById('risk').value);
+ const e=Number(document.getElementById('entry').value);
+ const s=Number(document.getElementById('sl').value);
+ const t=Number(document.getElementById('tp').value);
+ if(!b||!r||!e||!s||!t){alert('أدخل جميع القيم');return}
+ const maxLoss=b*r/100;
+ const sd=Math.abs(e-s);
+ const td=Math.abs(t-e);
+ const rr=td/sd;
+ document.getElementById('loss').textContent='$'+maxLoss.toFixed(2);
+ document.getElementById('distance').textContent=sd.toFixed(5);
+ document.getElementById('rewardDistance').textContent=td.toFixed(5);
+ document.getElementById('rr').textContent='1 : '+rr.toFixed(2);
+ document.getElementById('result').style.display='block';
+}
+calculate();
+</script>
+</body>
+</html>

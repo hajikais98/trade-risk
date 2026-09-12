@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trade Risk Calculator V1</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Tahoma,Arial,sans-serif;background:#0f172a;color:#e5e7eb}
+  .wrap{max-width:720px;margin:auto;padding:18px}
+  .card{background:#111827;border:1px solid #263244;border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h1{font-size:24px;margin:0 0 6px}
+  .sub{color:#9ca3af;margin:0 0 18px;font-size:14px}
+  label{display:block;margin:12px 0 6px;font-size:14px}
+  input,select{width:100%;padding:13px 12px;border-radius:12px;border:1px solid #334155;background:#0b1220;color:#fff;font-size:16px;outline:none}
+  input:focus,select:focus{border-color:#64748b}
+  button{width:100%;margin-top:16px;padding:14px;border:0;border-radius:12px;background:#22c55e;color:#07130a;font-size:17px;font-weight:700;cursor:pointer}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .results{margin-top:18px;display:none}
+  .item{background:#0b1220;border:1px solid #263244;border-radius:14px;padding:13px;margin-top:10px}
+  .k{color:#9ca3af;font-size:13px}
+  .v{font-size:21px;font-weight:700;margin-top:4px}
+  .warn{margin-top:12px;padding:12px;border-radius:12px;background:#3f1d1d;color:#fecaca;display:none}
+  .ok{margin-top:12px;padding:12px;border-radius:12px;background:#14301f;color:#bbf7d0;display:none}
+  .note{font-size:12px;color:#94a3b8;margin-top:14px;line-height:1.7}
+  @media (max-width:520px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>حاسبة مخاطرة التداول</h1>
+    <p class="sub">Trade Risk Calculator — V1</p>
+
+    <label>نوع الأصل</label>
+    <select id="asset">
+      <option value="crypto">Crypto</option>
+      <option value="gold">Gold / XAUUSD</option>
+      <option value="forex">Forex</option>
+    </select>
+
+    <div class="grid">
+      <div>
+        <label>الرصيد بالدولار</label>
+        <input id="balance" type="number" step="0.01" placeholder="مثال: 1000">
+      </div>
+      <div>
+        <label>نسبة المخاطرة %</label>
+        <input id="riskPct" type="number" step="0.01" placeholder="مثال: 1">
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <label>سعر الدخول</label>
+        <input id="entry" type="number" step="0.00001" placeholder="مثال: 3000">
+      </div>
+      <div>
+        <label>Stop Loss</label>
+        <input id="sl" type="number" step="0.00001" placeholder="مثال: 2980">
+      </div>
+    </div>
+
+    <label>Take Profit</label>
+    <input id="tp" type="number" step="0.00001" placeholder="مثال: 3040">
+
+    <label>قيمة النقطة / حركة السعر لكل وحدة (اختياري لحساب حجم الصفقة)</label>
+    <input id="pointValue" type="number" step="0.0000001" placeholder="اتركها فارغة إذا لم تعرفها">
+
+    <button onclick="calc()">احسب</button>
+
+    <div class="results" id="results">
+      <div class="item">
+        <div class="k">أقصى خسارة مسموحة</div>
+        <div class="v" id="riskMoney">$0.00</div>
+      </div>
+
+      <div class="item">
+        <div class="k">المسافة إلى وقف الخسارة</div>
+        <div class="v" id="slDistance">0</div>
+      </div>
+
+      <div class="item">
+        <div class="k">Risk / Reward</div>
+        <div class="v" id="rr">0 : 0</div>
+      </div>
+
+      <div class="item">
+        <div class="k">حجم الصفقة التقديري</div>
+        <div class="v" id="positionSize">—</div>
+      </div>
+
+      <div class="warn" id="warn"></div>
+      <div class="ok" id="ok"></div>
+    </div>
+
+    <p class="note">
+      ملاحظة: حساب حجم الصفقة يحتاج معرفة قيمة النقطة/العقد الخاصة بالأصل والمنصة.
+      هذه النسخة لا تفترض قيمة عقد ثابتة حتى لا تعطي رقمًا خاطئًا.
+    </p>
+  </div>
+</div>
+
+<script>
+function n(id){ return parseFloat(document.getElementById(id).value); }
+
+function money(x){
+  return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(x);
+}
+
+function calc(){
+  const balance=n('balance'), riskPct=n('riskPct'), entry=n('entry'), sl=n('sl'), tp=n('tp');
+  const pointValue=n('pointValue');
+
+  if([balance,riskPct,entry,sl,tp].some(x => !isFinite(x)) || balance<=0 || riskPct<=0){
+    alert('أدخل القيم الأساسية بشكل صحيح.');
+    return;
+  }
+
+  const riskMoney = balance * (riskPct/100);
+  const slDist = Math.abs(entry-sl);
+  const tpDist = Math.abs(tp-entry);
+
+  if(slDist===0){
+    alert('سعر الدخول وStop Loss لا يمكن أن يكونا متساويين.');
+    return;
+  }
+
+  const rr = tpDist/slDist;
+
+  document.getElementById('riskMoney').textContent = money(riskMoney);
+  document.getElementById('slDistance').textContent = slDist.toLocaleString('en-US',{maximumFractionDigits:8});
+  document.getElementById('rr').textContent = '1 : ' + rr.toFixed(2);
+
+  let ps = 'أدخل قيمة النقطة';
+  if(isFinite(pointValue) && pointValue>0){
+    const size = riskMoney / (slDist * pointValue);
+    ps = size.toLocaleString('en-US',{maximumFractionDigits:6});
+  }
+  document.getElementById('positionSize').textContent = ps;
+
+  const warn=document.getElementById('warn');
+  const ok=document.getElementById('ok');
+  warn.style.display='none';
+  ok.style.display='none';
+
+  if(riskPct>3){
+    warn.textContent='تنبيه: نسبة المخاطرة أعلى من 3%. هذا مستوى مرتفع لكثير من المتداولين.';
+    warn.style.display='block';
+  } else {
+    ok.textContent='نسبة المخاطرة المدخلة ضمن نطاق معتدل من ناحية إدارة المخاطر.';
+    ok.style.display='block';
+  }
+
+  document.getElementById('results').style.display='block';
+}
+</script>
+</body>
+</html>
