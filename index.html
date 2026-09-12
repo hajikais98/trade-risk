@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<title>Trade Risk — حاسبة إدارة المخاطر</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--bg:#07101d;--card:#101b2b;--card2:#0b1524;--line:#26364b;--text:#f8fafc;--muted:#9aa9bc;--accent:#27d17f;--danger:#ff6b6b}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#07101d,#0d1726);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
+main{max-width:760px;margin:auto;padding:18px 14px 40px}.brand{padding:12px 4px 18px}.brand h1{margin:0;font-size:27px}.brand p{margin:6px 0;color:var(--muted);font-size:14px}
+.card{background:rgba(16,27,43,.96);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:14px;box-shadow:0 14px 40px rgba(0,0,0,.18)}
+h2{font-size:18px;margin:0 0 14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;color:#dce5ef;font-size:13px;margin:12px 0 6px}input,select{width:100%;padding:13px;border:1px solid #33465f;border-radius:12px;background:#08111e;color:#fff;font-size:16px;outline:none}input:focus,select:focus{border-color:#6b7f99}
+button{width:100%;border:0;border-radius:13px;padding:14px;margin-top:16px;background:var(--accent);color:#06140c;font-size:17px;font-weight:800}
+.results{display:none;margin-top:16px}.result{padding:13px;background:var(--card2);border:1px solid var(--line);border-radius:13px;margin:9px 0}.k{font-size:12px;color:var(--muted)}.v{font-size:21px;font-weight:800;margin-top:4px}
+.message{padding:12px;border-radius:12px;margin-top:10px;font-size:13px;line-height:1.7}.good{background:#103323;color:#b9f7d3}.bad{background:#3a1b22;color:#ffd0d0}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.secondary{background:#18263a;color:#e5edf6}
+.history{display:none}.trade{border:1px solid var(--line);border-radius:12px;padding:12px;margin:9px 0;background:var(--card2)}.trade strong{display:block}.trade small{color:var(--muted)}
+.note{font-size:12px;line-height:1.8;color:var(--muted);margin:14px 0 0}
+@media(max-width:520px){.grid,.actions{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<div class="brand"><h1>Trade Risk</h1><p>حاسبة إدارة المخاطر للمتداول — نسخة المنتج الأولى</p></div>
+
+<section class="card">
+<h2>احسب صفقتك</h2>
+<div class="grid">
+<div><label>نوع الأصل</label><select id="asset"><option value="crypto">Crypto</option><option value="gold">XAUUSD Gold</option></select></div>
+<div><label>نوع الصفقة</label><select id="side"><option value="buy">شراء — Buy</option><option value="sell">بيع — Sell</option></select></div>
+</div>
+<div class="grid">
+<div><label>الرصيد ($)</label><input id="balance" type="number" step="0.01" placeholder="1000"></div>
+<div><label>المخاطرة (%)</label><input id="risk" type="number" step="0.01" placeholder="1"></div>
+</div>
+<div class="grid">
+<div><label>سعر الدخول</label><input id="entry" type="number" step="0.00001" placeholder="3000"></div>
+<div><label>Stop Loss</label><input id="sl" type="number" step="0.00001" placeholder="2990"></div>
+</div>
+<label>Take Profit</label><input id="tp" type="number" step="0.00001" placeholder="3020">
+<button onclick="calculate()">احسب الصفقة</button>
+
+<div id="results" class="results">
+<div class="result"><div class="k">أقصى خسارة مسموحة</div><div class="v" id="loss"></div></div>
+<div class="result"><div class="k">المسافة إلى Stop Loss</div><div class="v" id="sd"></div></div>
+<div class="result"><div class="k">Risk / Reward</div><div class="v" id="rr"></div></div>
+<div class="result"><div class="k">حجم الصفقة</div><div class="v" id="size"></div></div>
+<div id="msg"></div>
+<div class="actions"><button class="secondary" onclick="saveTrade()">حفظ الصفقة</button><button class="secondary" onclick="clearForm()">مسح</button></div>
+</div>
+<p class="note">الأداة للحساب وإدارة المخاطر فقط وليست توصية شراء أو بيع. في Gold نستخدم افتراضًا قدره 100 أونصة لكل 1 lot؛ يجب مطابقة مواصفات العقد مع وسيطك قبل التداول الحقيقي.</p>
+</section>
+
+<section class="card">
+<h2>سجل الصفقات</h2>
+<div id="history" class="history"></div>
+<button class="secondary" onclick="clearHistory()">حذف السجل</button>
+</section>
+</main>
+<script>
+let last=null;
+const $=id=>document.getElementById(id);
+function num(id){return Number($(id).value)}
+function calculate(){
+ const asset=$('asset').value, side=$('side').value,b=num('balance'),r=num('risk'),e=num('entry'),s=num('sl'),t=num('tp');
+ if(![b,r,e,s,t].every(Number.isFinite)||b<=0||r<=0||e<=0||s<=0||t<=0){alert('أدخل جميع القيم بشكل صحيح.');return}
+ if((side==='buy'&&(s>=e||t<=e))||(side==='sell'&&(s<=e||t>=e))){alert(side==='buy'?'في Buy يجب أن يكون SL أسفل الدخول وTP أعلى الدخول.':'في Sell يجب أن يكون SL أعلى الدخول وTP أسفل الدخول.');return}
+ const maxLoss=b*r/100, sd=Math.abs(e-s), td=Math.abs(t-e), rr=td/sd;
+ let size;
+ if(asset==='crypto'){size=maxLoss/sd}
+ else {size=maxLoss/(sd*100)}
+ last={asset,side,b,r,e,s,t,maxLoss,sd,rr,size,time:new Date().toLocaleString('ar-TN')};
+ $('loss').textContent='$'+maxLoss.toFixed(2);$('sd').textContent=sd.toFixed(5);$('rr').textContent='1 : '+rr.toFixed(2);
+ $('size').textContent=asset==='crypto'?size.toFixed(6)+' وحدة':size.toFixed(2)+' lot';
+ $('msg').className='message '+(r>3?'bad':'good');
+ $('msg').textContent=r>3?'تنبيه: المخاطرة أعلى من 3%. راجع حجم المخاطرة قبل التنفيذ.':'الحساب ضمن نسبة المخاطرة التي أدخلتها.';
+ $('results').style.display='block';
+}
+function saveTrade(){
+ if(!last){alert('احسب الصفقة أولًا.');return}
+ const arr=JSON.parse(localStorage.getItem('trades')||'[]');arr.unshift(last);localStorage.setItem('trades',JSON.stringify(arr.slice(0,50)));renderHistory();alert('تم حفظ الصفقة على هذا الجهاز.');
+}
+function renderHistory(){
+ const arr=JSON.parse(localStorage.getItem('trades')||'[]');$('history').style.display=arr.length?'block':'none';
+ $('history').innerHTML=arr.length?arr.map((x,i)=>`<div class="trade"><strong>${x.asset} — ${x.side==='buy'?'Buy':'Sell'} — ${x.time}</strong><small>الرصيد $${x.b} | المخاطرة ${x.r}% | الخسارة القصوى $${x.maxLoss.toFixed(2)} | R:R 1:${x.rr.toFixed(2)}</small></div>`).join(''):'<div class="note">لا توجد صفقات محفوظة بعد.</div>';
+}
+function clearTrade(){last=null;$('results').style.display='none'}
+function clearForm(){['balance','risk','entry','sl','tp'].forEach(id=>$(id).value='');clearTrade()}
+function clearHistory(){if(confirm('حذف سجل الصفقات من هذا الجهاز؟')){localStorage.removeItem('trades');renderHistory()}}
+renderHistory();
+</script>
+</body>
+</html>
